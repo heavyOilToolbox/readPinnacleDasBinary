@@ -88,7 +88,8 @@
       <ResourceOutputFileName>$(IntDir)$(TargetName)$(TargetExt).manifest.res</ResourceOutputFileName>
     </ManifestResourceCompile>
     <PostBuildEvent>
-      <Command>del "$(OutDir)$(TargetName).exp" "$(OutDir)$(TargetName).lib" "$(OutDir)$(TargetName)$(TargetExt).manifest" "$(OutDir)$(TargetName).ilk"</Command>
+      <Command>del "$(OutDir)$(TargetName).exp" "$(OutDir)$(TargetName).lib" "$(OutDir)$(TargetName)$(TargetExt).manifest" "$(OutDir)$(TargetName).ilk"
+xcopy /Y "$(SolutionDir)readPinnacleDasBinary.m" "$(OutDir)"</Command>
       <Message>   Deleting $(OutDir)$(TargetName).exp $(OutDir)$(TargetName).lib $(OutDir)$(TargetName)$(TargetExt).manifest and $(OutDir)$(TargetName).ilk</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -132,6 +133,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="readPinnacleDasBinary.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="readPinnacleDasBinary.m" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Import Project="$(MSBuildProjectDirectory)\matlab.targets" />

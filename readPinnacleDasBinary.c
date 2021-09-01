@@ -1,15 +1,27 @@
-/*
-* rawReader.c is a C-MEX to load pinnacle DAS binaries
-*
-* input is a full path to a binary file on disk
-* output is an array of static phase
-*
-* The calling syntax is:
-*
-*	instantaneousPhase = rawReader(fileName);
-*
-* Peter Cook 2018
-*/
+//
+//* C-MEX to load pinnacle DAS binaries
+//*
+//* input is a full path to a binary file on disk
+//*
+//* The calling syntax is:
+//* 
+//* v3 header calling syntax (from MATLAB)
+//* frameData = readPinnacleDasBinary(fullFilePath);
+//* [header, frameData] = readPinnacleDasBinary(fullFilePath);
+//* [header, frameData, qualityData] = readPinnacleDasBinary(fullFilePath);
+//* [header, zones, frameData] = readPinnacleDasBinary(fullFilePath);
+//* [header, zones, frameData, qualityData] = readPinnacleDasBinary(fullFilePath);
+//* 
+//* v4 header calling syntax (from MATLAB)
+//* frameData = readPinnacleDasBinary(fullFilePath);
+//* [header, frameData] = readPinnacleDasBinary(fullFilePath);
+//* [header, frameData, qualityData] = readPinnacleDasBinary(fullFilePath);
+//* [header, zones, frameData] = readPinnacleDasBinary(fullFilePath);
+//* [header, zones, depthCal, nominalDepth, measuredDepth, frameData] = readPinnacleDasBinary(fullFilePath);
+//* [header, zones, depthCal, nominalDepth, measuredDepth, frameData, qualityData] = readPinnacleDasBinary(fullFilePath);
+//*
+//* Peter Cook 2018. revised 2021
+
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -19,8 +31,6 @@
 #include "mex.h"
 #include "matrix.h"
 #include "readPinnacleDasBinary.h"
-
-// MATLAB / MEX won't allow returning a custom type...
 
 
 /*
@@ -218,8 +228,6 @@ size_t sizeOfDataType(int32_t frameDataType)
 	return numBytes;
 }
 
-
-
 void readBinaryDataBlock(FILE* fptr,
 	void* A, const size_t LDA, const size_t LDB, const size_t sampleSize)
 {
@@ -390,17 +398,17 @@ void makeMexHeader4(mxArray* plhs[], DASFileHeader4_T* dasHeader)
 	mxArray* compression = mxCreateNumericMatrix(1, 1, mxINT64_CLASS, mxREAL);
 	mxArray* number_of_channels = mxCreateNumericMatrix(1, 1, mxINT32_CLASS, mxREAL);
 	mxArray* zones_offset = mxCreateNumericMatrix(1, 1, mxINT64_CLASS, mxREAL);
-
+	// these 3 fields differ from v3 header
 	mxArray* depth_calibration_offset = mxCreateNumericMatrix(1, 1, mxINT64_CLASS, mxREAL);
 	mxArray* nominal_depth_offset = mxCreateNumericMatrix(1, 1, mxINT64_CLASS, mxREAL);
 	mxArray* measured_depth_offset = mxCreateNumericMatrix(1, 1, mxINT64_CLASS, mxREAL);
-
+	// end diff
 	mxArray* reserved = mxCreateNumericMatrix(1, PadLength4, mxINT8_CLASS, mxREAL);
-
+	// these 3 field differ from v3 header
 	mxArray* digitizer_rate = mxCreateNumericMatrix(1, 1, mxDOUBLE_CLASS, mxREAL);
 	mxArray* delay_coil_length = mxCreateNumericMatrix(1, 1, mxDOUBLE_CLASS, mxREAL);
 	mxArray* index_of_refraction = mxCreateNumericMatrix(1, 1, mxDOUBLE_CLASS, mxREAL);
-
+	// end diff
 	mxArray* local_year = mxCreateNumericMatrix(1, 1, mxINT16_CLASS, mxREAL);
 	mxArray* local_month = mxCreateNumericMatrix(1, 1, mxINT16_CLASS, mxREAL);
 	mxArray* local_day = mxCreateNumericMatrix(1, 1, mxINT16_CLASS, mxREAL);
@@ -436,17 +444,17 @@ void makeMexHeader4(mxArray* plhs[], DASFileHeader4_T* dasHeader)
 	*((int64_t*)mxGetData(compression)) = dasHeader->Compression;
 	*((int16_t*)mxGetData(number_of_channels)) = dasHeader->NumberOfChannels;
 	*((int64_t*)mxGetData(zones_offset)) = dasHeader->ZonesOffset;
-	
+	// +diff
 	*((int64_t*)mxGetData(depth_calibration_offset)) = dasHeader->DepthCalibrationOffset;
 	*((int64_t*)mxGetData(nominal_depth_offset)) = dasHeader->NominalDepthOffset;
 	*((int64_t*)mxGetData(measured_depth_offset)) = dasHeader->MeasuredDepthOffset;
-
+	// +diff
 	*((int8_t**)mxGetData(reserved)) = dasHeader->Reserved;
-	
+	// +diff
 	*((double*)mxGetData(digitizer_rate)) = dasHeader->DigitizerRate;
 	*((double*)mxGetData(delay_coil_length)) = dasHeader->DelayCoilLength;
 	*((double*)mxGetData(index_of_refraction)) = dasHeader->IndexOfRefraction;
-	
+	// +diff
 	*((int16_t*)mxGetData(local_year)) = dasHeader->LocalYear;
 	*((int16_t*)mxGetData(local_month)) = dasHeader->LocalMonth;
 	*((int16_t*)mxGetData(local_day)) = dasHeader->LocalDay;
@@ -483,17 +491,17 @@ void makeMexHeader4(mxArray* plhs[], DASFileHeader4_T* dasHeader)
 	mxSetFieldByNumber(plhs[0], 0, 24, compression);
 	mxSetFieldByNumber(plhs[0], 0, 25, number_of_channels);
 	mxSetFieldByNumber(plhs[0], 0, 26, zones_offset);
-
+	// +diff
 	mxSetFieldByNumber(plhs[0], 0, 27, depth_calibration_offset);
 	mxSetFieldByNumber(plhs[0], 0, 28, nominal_depth_offset);
 	mxSetFieldByNumber(plhs[0], 0, 29, measured_depth_offset);
-
+	// +diff
 	mxSetFieldByNumber(plhs[0], 0, 30, reserved);
-
+	// +diff
 	mxSetFieldByNumber(plhs[0], 0, 31, digitizer_rate);
 	mxSetFieldByNumber(plhs[0], 0, 32, delay_coil_length);
 	mxSetFieldByNumber(plhs[0], 0, 33, index_of_refraction);
-
+	// +diff
 	mxSetFieldByNumber(plhs[0], 0, 34, local_year);
 	mxSetFieldByNumber(plhs[0], 0, 35, local_month);
 	mxSetFieldByNumber(plhs[0], 0, 36, local_day);
@@ -506,7 +514,6 @@ void makeMexHeader4(mxArray* plhs[], DASFileHeader4_T* dasHeader)
 // convert a v3 das header to a v4 das header
 DASFileHeader4_T convertHeaderV3ToHeaderV4(DASFileHeader3_T* dasHeader3)
 {
-	int8_t _reserved[330] = { 0 };
 	//int8_t _reserved[PadLength4] = { 0 };
 	// TODO: is it possible to access and write the correct gauge length?
 	DASFileHeader4_T dasHeader4 = {
@@ -552,14 +559,14 @@ DASFileHeader4_T convertHeaderV3ToHeaderV4(DASFileHeader3_T* dasHeader3)
 		.LocalMicrosecond = dasHeader3->LocalMicrosecond
 	};
 	memcpy(&(dasHeader4.SoftwareName), &(dasHeader3->SoftwareName), SoftwareNameLength);
-	memcpy(&(dasHeader4.Reserved), &_reserved, PadLength4);
+	memset(&(dasHeader4.Reserved), 0, PadLength4 * sizeof(int8_t));
+	//memcpy(&(dasHeader4.Reserved), &_reserved, PadLength4);
 	return dasHeader4;
 }
 
 // convert a v4 das header to a v3 das header 
 DASFileHeader3_T convertHeaderV4ToHeaderV3(DASFileHeader4_T* dasHeader4)
 {
-	int8_t _reserved[378] = { 0 };
 	//int8_t _reserved[PadLength3] = { 0 };
 	DASFileHeader3_T dasHeader3 = {
 		.Preamble = dasHeader4->Preamble,
@@ -598,7 +605,8 @@ DASFileHeader3_T convertHeaderV4ToHeaderV3(DASFileHeader4_T* dasHeader4)
 		.LocalMicrosecond = dasHeader4->LocalMicrosecond
 	};
 	memcpy(&(dasHeader3.SoftwareName), &(dasHeader4->SoftwareName), SoftwareNameLength);
-	memcpy(&(dasHeader3.Reserved), _reserved, PadLength3);
+	memset(&(dasHeader3.Reserved), 0, PadLength3 * sizeof(int8_t));
+	//memcpy(&(dasHeader3.Reserved), _reserved, PadLength3);
 	return dasHeader3;
 }
 
@@ -1043,19 +1051,7 @@ void allocateOutputMxArray(mxArray* plhs[], size_t arrayIdx, int32_t frameDataTy
 	}
 }
 
-// v3 header calling syntax (from MATLAB)
-// frameData = readPinnacleDasBinary(fullFilePath);
-// [header, frameData] = readPinnacleDasBinary(fullFilePath);
-// [header, frameData, qualityData] = readPinnacleDasBinary(fullFilePath);
-// [header, zones, frameData] = readPinnacleDasBinary(fullFilePath);
-// [header, zones, frameData, qualityData] = readPinnacleDasBinary(fullFilePath);
-// v4 header calling syntax (from MATLAB)
-// frameData = readPinnacleDasBinary(fullFilePath);
-// [header, frameData] = readPinnacleDasBinary(fullFilePath);
-// [header, frameData, qualityData] = readPinnacleDasBinary(fullFilePath);
-// [header, zones, frameData] = readPinnacleDasBinary(fullFilePath);
-// [header, zones, depthCal, nominalDepth, measuredDepth, frameData] = readPinnacleDasBinary(fullFilePath);
-// [header, zones, depthCal, nominalDepth, measuredDepth, frameData, qualityData] = readPinnacleDasBinary(fullFilePath);
+// "gateway"
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
 {
 
