@@ -82,7 +82,7 @@
 %     0546	LocalSecond             int16_t     2	
 %     0548	LocalMicrosecond        int32_t     4	
 %     ...				Padding to make entire length 1024
-%   Pinnacle v3 File Headers are similar, but do not the following 6
+%   Pinnacle v3 File Headers are similar, but do not contain the following 6
 %   fields: DepthCalibrationOffset, NominalDepthOffset,
 %   MeasuredDepthOffset, DigitizerRate, GaugeLength, IndexOfRefraction
 %
