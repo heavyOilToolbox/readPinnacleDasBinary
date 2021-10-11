@@ -7,6 +7,7 @@
 #include "mex.h"
 #include "matrix.h"
 
+const static double ScaleFactor = 10430.0;
 const static double MetersPerChannel = 1.0209523838714072;
 const static size_t SoftwareNameLength = 32;
 const static size_t PadLength0 = 202;

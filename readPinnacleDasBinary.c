@@ -234,6 +234,105 @@ void readBinaryDataBlock(FILE* fptr,
 	fread(A, sampleSize, LDA * LDB, fptr);
 }
 
+// instead of reading all channels, read all frames from specific channels
+// final argument is a logical mask array from matlab
+// LDA: number of frames
+// LDB: number of channels
+void readBinaryDataBlockWithMask(FILE* fptr,
+	void* A, const size_t LDA, const size_t LDB, const size_t sampleSize, 
+	bool* channelMask)
+{
+	unsigned char* Aptr = (unsigned char*)A;
+	size_t skippedChannels = 0;
+	for (size_t k = 0; k < LDB; k++)
+	{
+		if (channelMask[k])
+		{
+			//fread(A + LDA * sampleSize, sampleSize, LDA, fptr);
+			if (skippedChannels)
+			{
+				fseek(fptr, LDA * sampleSize * skippedChannels, SEEK_CUR);
+				skippedChannels = 0;
+			}
+			fread(Aptr, sampleSize, LDA, fptr);
+			Aptr += LDA * sampleSize;
+		}
+		else
+		{
+			skippedChannels++;
+			// fseek(fptr, LDA * sampleSize, SEEK_CUR);
+		}
+	}
+}
+
+void stackChannelsAverageQuality(int16_t* dPhaseData,
+	const size_t numberOfFrames, const size_t numberOfChannels,
+	float* qualityBlock, const int64_t qualityBlockSize,
+	double* dPhaseDataStacked)
+{
+	// qualityBlock 4 x (numberOfFrames / qualityBlockSize) x numberOfChannels
+	for (size_t i = 0; i < numberOfFrames; i++)
+	{
+		double qualitySum = 0;
+		double dPhaseSum = 0;
+		for (size_t j = 0; j < numberOfChannels; j++)
+		{
+			size_t qualityIdx = 4 * (i / qualityBlockSize) + j * 4 * (numberOfFrames / qualityBlockSize);
+			double dPhaseVal = (double)dPhaseData[i + j * numberOfFrames];
+			double qualityVal = (double)qualityBlock[qualityIdx];
+			qualitySum += qualityVal;
+			dPhaseSum += dPhaseVal * qualityVal;
+		}
+		dPhaseSum /= qualitySum;
+		dPhaseDataStacked[i] = dPhaseSum;
+	}
+}
+
+//void stackChannelsAverageQuality(int16_t* dPhaseData, 
+//	const size_t numberOfFrames, const size_t numberOfChannels, 
+//	float* qualityBlock, const int64_t qualityBlockSize,
+//	double* dPhaseDataStacked)
+//{
+//	double* P;
+//	float* S;
+//	// array to hold product of avg quality and dPhase
+//	P = mxCalloc(numberOfFrames, sizeof(double));
+//	//double* P = (double*)p;
+//	if (P == NULL)
+//	{
+//		return;
+//	}
+//	S = mxCalloc(numberOfFrames, sizeof(float));
+//	//float* S = (float*)s;
+//	if (S == NULL)
+//	{
+//		return;
+//	}
+//
+//	size_t qualityChannelOffset = 4 * numberOfFrames / qualityBlockSize;
+//	for (size_t j = 0; j < numberOfChannels; j++)
+//	{
+//		for (size_t i = 0; i < numberOfFrames; i++)
+//		{
+//			size_t iq = i / qualityBlockSize * 4 + j * qualityChannelOffset;
+//			float q = qualityBlock[iq];
+//			P[i] += (double)dPhaseData[j * numberOfFrames + i] * q;
+//			S[i] += q;
+//		}
+//	}
+//
+//	for (size_t i = 0; i < numberOfFrames; i++)
+//	{
+//		double stackedPhase = P[i];
+//		float qualitySum = S[i];
+//		double dPhaseAvg = stackedPhase / qualitySum / ScaleFactor;
+//		dPhaseDataStacked[i] = dPhaseAvg;
+//	}
+//
+//	mxFree(P);
+//	mxFree(S);
+//}
+
 int16_t getHeaderVersion(FILE* fptr) 
 {
 	int64_t Preamble;
@@ -640,7 +739,7 @@ int32_t* getZoneData(FILE* fptr, int64_t ZonesOffset, size_t NumberOfZones)
 	}
 	fseek(fptr, ZonesOffset, SEEK_SET);
 	size_t nArrayElem = 3 * NumberOfZones + 1;
-	int32_t* Zones = (int32_t*)calloc(nArrayElem, sizeof(int32_t));
+	int32_t* Zones = (int32_t*)mxCalloc(nArrayElem, sizeof(int32_t));
 	if (Zones != NULL) 
 	{
 		fread(Zones, sizeof(int32_t), nArrayElem, fptr);
@@ -656,7 +755,7 @@ double* getDepthCalibrationData(FILE* fptr, int64_t DepthCalibrationOffset, size
 	}
 	fseek(fptr, DepthCalibrationOffset + sizeof(int32_t), SEEK_SET);
 	size_t nArrayElem = 2 * NumberOfPoints;
-	double* DepthCalibration = (double*)calloc(nArrayElem, sizeof(double));
+	double* DepthCalibration = (double*)mxCalloc(nArrayElem, sizeof(double));
 	if (DepthCalibration != NULL)
 	{
 		fread(DepthCalibration, sizeof(int32_t), nArrayElem, fptr);
@@ -671,7 +770,7 @@ float* getNominalDepthData(FILE* fptr, int64_t NominalDepthOffset, size_t Number
 		return NULL;
 	}
 	fseek(fptr, NominalDepthOffset, SEEK_SET);
-	float* NominalDepths = (float*)calloc(NumberOfChannels, sizeof(float));
+	float* NominalDepths = (float*)mxCalloc(NumberOfChannels, sizeof(float));
 	if (NominalDepths != NULL)
 	{
 		fread(NominalDepths, sizeof(float), NumberOfChannels, fptr);
@@ -686,7 +785,7 @@ float* getMeasuredDepthData(FILE* fptr, int64_t MeasuredDepthOffset, size_t Numb
 		return NULL;
 	}
 	fseek(fptr, MeasuredDepthOffset, SEEK_SET);
-	float* MeasuredDepths = (float*)calloc(NumberOfChannels, sizeof(float));
+	float* MeasuredDepths = (float*)mxCalloc(NumberOfChannels, sizeof(float));
 
 	if (MeasuredDepths != NULL)
 	{
@@ -718,7 +817,7 @@ void getMexZoneData(mxArray* plhs[], size_t arrayIdx, FILE* fptr, int64_t ZonesO
 		*(mxZones + k) = *(Zones + k);
 	}
 
-	free(Zones);
+	mxFree(Zones);
 }
 
 void getMexDepthCalData(mxArray* plhs[], size_t arrayIdx, FILE* fptr, int64_t DepthCalibrationOffset)
@@ -742,7 +841,7 @@ void getMexDepthCalData(mxArray* plhs[], size_t arrayIdx, FILE* fptr, int64_t De
 		*(mxDepthCal + k + NumberOfPoints) = *(DepthCalibration + 2 * k + 1);
 	}
 
-	free(DepthCalibration);
+	mxFree(DepthCalibration);
 }
 
 void getMexNominalDepthData(mxArray* plhs[], size_t arrayIdx, FILE* fptr, int64_t NominalDepthOffset, size_t NumberOfChannels)
@@ -764,7 +863,7 @@ void getMexNominalDepthData(mxArray* plhs[], size_t arrayIdx, FILE* fptr, int64_
 		*(mxNominalDepths + k) = *(NominalDepths + k);
 	}
 
-	free(NominalDepths);
+	mxFree(NominalDepths);
 }
 
 void getMexMeasuredDepthData(mxArray* plhs[], size_t arrayIdx, FILE* fptr, int64_t MeasuredDepthOffset, size_t NumberOfChannels)
@@ -786,7 +885,7 @@ void getMexMeasuredDepthData(mxArray* plhs[], size_t arrayIdx, FILE* fptr, int64
 		*(mxMeasuredDepths + k) = *(MeasuredDepths + k);
 	}
 
-	free(MeasuredDepths);
+	mxFree(MeasuredDepths);
 }
 
 int32_t makeEmptyDepthCalibrationBlock()
@@ -796,7 +895,7 @@ int32_t makeEmptyDepthCalibrationBlock()
 
 float* makeNominalDepthBlock(size_t NumberOfChannels)
 {
-	float* NominalDepths = calloc(NumberOfChannels, sizeof(float));
+	float* NominalDepths = mxCalloc(NumberOfChannels, sizeof(float));
 	if (NominalDepths != NULL)
 	{
 		for (size_t k = 0; k < NumberOfChannels; k++)
@@ -1054,7 +1153,11 @@ void allocateOutputMxArray(mxArray* plhs[], size_t arrayIdx, int32_t frameDataTy
 // "gateway"
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
 {
-
+	if (nrhs == 0)
+	{
+		// error
+		return;
+	}
 	char* file_name = mxArrayToString(prhs[0]);
 	// read file header
 	DASFileHeader0_T dasHeader0;
@@ -1200,25 +1303,85 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
 		LDB = frameCapacity;
 	}
 
+	void* channelMaskPtr = mxCalloc(LDB, sizeof(bool));
+	bool* channelMask = (bool*)channelMaskPtr;
+	size_t nMxChannelMask = (nrhs > 1) ? mxGetNumberOfElements(prhs[1]) : 0;
+	bool* mxChannelMask = (nrhs > 1) ? mxGetLogicals(prhs[1]) : NULL;
+	for (size_t k = 0; k < nMxChannelMask; k++)
+	{
+		channelMask[k] = mxChannelMask[k];
+	}
+	size_t ldb = 0;
+	for (size_t k = 0; k < LDB; k++)
+	{
+		ldb += channelMask[k];
+	}
+
 	// read main binary data block
 	if (frameOffset > 0)
 	{
 		// allocate memory for main data block
-		allocateOutputMxArray(plhs, outputIdx, frameDataType, LDA, LDB);
-		fseek(fptr, frameOffset, SEEK_SET);
-		readBinaryDataBlock(fptr, mxGetData(plhs[outputIdx]), LDA, LDB, sizeOfDataType(frameDataType));
-		outputIdx++;
+		if (nrhs == 1)
+		{
+			allocateOutputMxArray(plhs, outputIdx, frameDataType, LDA, LDB);
+			fseek(fptr, frameOffset, SEEK_SET);
+			readBinaryDataBlock(fptr, mxGetData(plhs[outputIdx]), LDA, LDB, sizeOfDataType(frameDataType));
+			outputIdx++;
+		}
+		else if (nrhs == 2)
+		{
+			allocateOutputMxArray(plhs, outputIdx, frameDataType, LDA, ldb);
+			fseek(fptr, frameOffset, SEEK_SET);
+			readBinaryDataBlockWithMask(fptr, mxGetData(plhs[outputIdx]), LDA, LDB, sizeOfDataType(frameDataType), channelMask);
+			outputIdx++;
+		}
+		else if ((nrhs == 3) && frameDataType == 3)
+		{
+			int16_t* dPhaseDataPtr;
+			float* qualityDataPtr;
+			double* dPhaseDataStacked;
+			// return only stacked data
+			dPhaseDataPtr = mxCalloc(LDA * ldb, sizeof(int16_t));
+			//int16_t* dPhaseData = (int16_t*)dPhaseDataPtr;
+			qualityDataPtr = mxCalloc(LDA / qualityBlockSize * ldb, sizeof(float));
+			//float* qualityData = (float*)qualityDataPtr;
+			if (dPhaseDataPtr != NULL)
+			{
+				readBinaryDataBlockWithMask(fptr, dPhaseDataPtr, LDA, LDB, sizeOfDataType(frameDataType), channelMask);
+			}
+			if (qualityDataPtr != NULL)
+			{
+				readBinaryDataBlockWithMask(fptr, qualityDataPtr, LDA / qualityBlockSize, LDB, sizeOfDataType(qualityDataType), channelMask);
+			}
+			dPhaseDataStacked = mxCalloc(LDA, sizeof(double));
+			stackChannelsAverageQuality(dPhaseDataPtr, LDA, ldb, qualityDataPtr, qualityBlockSize, dPhaseDataStacked);
+			plhs[outputIdx] = mxCreateNumericMatrix(LDA, 1, mxDOUBLE_CLASS, mxREAL);
+			mxSetData(plhs[0], dPhaseDataStacked);
+			mxFree(dPhaseDataPtr);
+			mxFree(qualityDataPtr);
+			outputIdx++; // necessary?
+		}
 	}
 
 	// if dPhase & quality, allocate array for quality data
 	if (frameDataType == 3 && headerVersion > 0 && qualityOffset > 0 && nlhs > 2)
 	{
-		allocateOutputMxArray(plhs, outputIdx, qualityDataType, LDA / qualityBlockSize, LDB);
-		fseek(fptr, qualityOffset, SEEK_SET);
-		readBinaryDataBlock(fptr, mxGetData(plhs[outputIdx]), LDA / qualityBlockSize, LDB, sizeOfDataType(qualityDataType));
+		if (nrhs == 1)
+		{
+			allocateOutputMxArray(plhs, outputIdx, qualityDataType, LDA / qualityBlockSize, LDB);
+			fseek(fptr, qualityOffset, SEEK_SET);
+			readBinaryDataBlock(fptr, mxGetData(plhs[outputIdx]), LDA / qualityBlockSize, LDB, sizeOfDataType(qualityDataType));
+		}
+		else if (nrhs == 2)
+		{
+			allocateOutputMxArray(plhs, outputIdx, qualityDataType, LDA / qualityBlockSize, ldb);
+			fseek(fptr, qualityOffset, SEEK_SET);
+			readBinaryDataBlockWithMask(fptr, mxGetData(plhs[outputIdx]), LDA / qualityBlockSize, LDB, sizeOfDataType(qualityDataType), channelMask);
+		}
+
 	}
 
 	fclose(fptr);
-
+	mxFree(channelMaskPtr);
 	return;
 }
