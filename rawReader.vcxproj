@@ -129,12 +129,15 @@ xcopy /Y "$(SolutionDir)readPinnacleDasBinary.m" "$(OutDir)"</Command>
     </ManifestResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="mex\readPinnacleDasBinary.c" />
     <ClCompile Include="readPinnacleDasBinary.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="mex\readPinnacleDasBinary.h" />
     <ClInclude Include="readPinnacleDasBinary.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="mex\readPinnacleDasBinary.m" />
     <None Include="readPinnacleDasBinary.m" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
