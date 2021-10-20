@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/python/pyReadPinnacleDasBinary/Lib/site-packages
+/python/pyReadPinnacleDasBinary/Scripts
+/python/pyReadPinnacleDasBinary/pyvenv.cfg

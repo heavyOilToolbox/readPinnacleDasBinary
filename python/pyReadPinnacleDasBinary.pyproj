@@ -11,6 +11,7 @@
     <OutputPath>.</OutputPath>
     <Name>pyReadPinnacleDasBinary</Name>
     <RootNamespace>pyReadPinnacleDasBinary</RootNamespace>
+    <InterpreterId>MSBuild|pyReadPinnacleDasBinary|$(MSBuildProjectFullPath)</InterpreterId>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -25,6 +26,17 @@
     <Compile Include="unitTests.py">
       <SubType>Code</SubType>
     </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Interpreter Include="pyReadPinnacleDasBinary\">
+      <Id>pyReadPinnacleDasBinary</Id>
+      <Version>3.7</Version>
+      <Description>pyReadPinnacleDasBinary (Python 3.7 (64-bit))</Description>
+      <InterpreterPath>Scripts\python.exe</InterpreterPath>
+      <WindowsInterpreterPath>Scripts\pythonw.exe</WindowsInterpreterPath>
+      <PathEnvironmentVariable>PYTHONPATH</PathEnvironmentVariable>
+      <Architecture>X64</Architecture>
+    </Interpreter>
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
