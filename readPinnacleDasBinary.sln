@@ -5,7 +5,7 @@ VisualStudioVersion = 16.0.31613.86
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "readPinnacleDasBinary", "rawReader.vcxproj", "{B227A2FB-DDBA-47D0-BCFC-8C606F1F39F4}"
 EndProject
-Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "pyReadPinnacleDasBinary", "..\pyReadPinnacleDasBinary\pyReadPinnacleDasBinary.pyproj", "{9050421C-3C2E-4173-ADA0-E5AA13F49773}"
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "pyReadPinnacleDasBinary", "python\pyReadPinnacleDasBinary.pyproj", "{9050421C-3C2E-4173-ADA0-E5AA13F49773}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
