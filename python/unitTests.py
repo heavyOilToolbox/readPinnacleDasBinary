@@ -147,3 +147,4 @@ if __name__ == "__main__":
         testIntensityDirectorySearch()
         testGetTimeStamps()
         testReadDasBinary()
+        print(dir(pyReadPinnacleDasBinary))

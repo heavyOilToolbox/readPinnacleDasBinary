@@ -208,7 +208,53 @@ dataTypeDict = {0: (0, 1, np.dtype('<i1')),
                 29: (4, 1, np.dtype(np.float32)),
                 30: (4, 1, np.dtype(np.float32))}
 
+frameDataTypeEnum = {
+                    0: ("NONE", "No data"),
+                    1: ("ABC_INT16", "Triple sensor raw data"),
+                    2: ("IQ_INT16", "Each sample represents an I & Q pair."),
+                    3: ("DPHASE_INT16", "Differential phase, scaled by 10,430 (2^15-1 / π) to span the dynamic range of the 16-bit integer"),
+                    4: ("AMPLITUDE_INT16", ""),
+                    5: ("AMPLITUDE_FLOAT", ""),
+                    6: ("PHASE_FLOAT", ""),
+                    7: ("INTENSITY_FLOAT", "Also used for phase power"),
+                    8: ("VSP_SINGLE_SWEEP_FLOAT", "deprecated"),
+                    9: ("VSP_STACKED_SWEEP_FLOAT", "deprecated"),
+                    10: ("FLOW_FLOAT", "deprecated"),
+                    11: ("INTENSITY_SPECTROGRAM_FLOAT", "Complete frequency domain data"),
+                    12: ("ABCD_INT16", "Quad sensor raw data"),
+                    13: ("FLOW_INJECTION", "deprecated"),
+                    14: ("FLOW_RELATIVE", "deprecated"),
+                    15: ("FLOW_PRODUCTION", "deprecated"),
+                    16: ("AMPLITUDE_QUAD", "Quality data stored as a composite of four values: average, minimum, maximum amplitude, and amplitude standard deviation, respectively"),
+                    17: ("DPHASE_FLOAT", "Differential phase"),
+                    18: ("MINMAX_FLOAT", "deprecated"),
+                    19: ("IQ_FLOAT", "Each sample represents an I & Q pair"),
+                    20: ("COMPLEX_FLOAT", "deprecated"),
+                    21: ("ABCD_INT16_RAW", "Differential phase"),
+                    22: ("IQ_INT16_RAW", "Differential phase"),
+                    23: ("IQIQ_INT16_RAW", "Differential phase"),
+                    24: ("REAL_FLOAT", "Differential phase"),
+                    25: ("FLOW_EROSION", "deprecated"),
+                    26: ("STATIC_PHASE_FLOAT", "Differential phase integrated from 0 over specified block size"),
+                    27: ("PHASE_VARIANCE_FLOAT", "Standard deviation of phase"),
+                    28: ("PHASE_POWER_FLOAT", "Frequency domain from only selected bands"),
+                    29: ("QUALITY_FLOAT", "Quality (amplitude) data"),
+                    30: ("STRAIN_FLOAT", "Differential phase integrated from 0 over the specified block size scaled with an optical strain coefficient")}
+
 def readDasBinary(fileName):
+    """
+    Read a Pinnacle DAS binary file and return a 2-tuple (header, frame data) for a v3 Pinnacle DAS binary 
+    or 3-tuple (header, frame data, measured depth) for a v4 Pinnacle DAS binary 
+
+    Args:
+        fileName (string): full file path to a v3 or v4 Pinnacle DAS binary file (.bin extension)
+
+    Returns:
+        dasHeader: file header, typeof DASFileHeader_3 or DASFileHeader_4 depending on binary file version
+        dasFrameData: numpy ndarray of DAS frame data. the class and shape of frameData will depend on the frame datatype indicated in the 
+            header (see dataTypeDict for more information)
+        measuredDepth: (header version 4 only) array of calibrated measured depth values with shape (NumberOfChannels x 1)
+    """
     headerVersion = checkHeaderVersion(fileName)
     if headerVersion == 3:
         return readV3DasBinary(fileName)
@@ -217,9 +263,19 @@ def readDasBinary(fileName):
     else:
         raise ValueError("Unsupported DAS Header Version")
 
-# for a v3 das binary return a tuple of (dasHeader, frameData)
 # TODO: add zones, quality
 def readV3DasBinary(fileName):
+    """
+    Read a Pinnacle v3 DAS binary and return a 2-tuple (header, frame data)
+
+    Args:
+        fileName (string): full file path to a v3 Pinnacle DAS binary file (.bin extension)
+
+    Returns:
+        dasHeader: file header, typeof DASFileHeader_3
+        dasFrameData: numpy ndarray of DAS frame data. the class and shape of frameData will depend on the frame datatype indicated in the 
+            header (see dataTypeDict for more information)
+    """
     dasHeader = np.fromfile(fileName, dtype=DASFileHeader_3, count=1)
     numberOfFrames = dasHeader['NumberOfFrames'][0]
     numberOfChannels = dasHeader['NumberOfChannels'][0]
@@ -247,9 +303,22 @@ def readV3DasBinary(fileName):
         dasFrameData = np.reshape(frameDataFlat, newshape=frameDataShape)
     return dasHeader, dasFrameData
 
-# for a v4 das binary return a tuple of (dasHeader, frameData, measuredDepth)
 # TODO: add zones, quality, nominal depth, depth calibration
 def readV4DasBinary(fileName):
+    """
+    Read a Pinnacle v4 DAS binary and return a 3-tuple (header, frame data, measured depth)
+    The class and shape of frameData will depend on the frame datatype indicated in the 
+    header (see dataTypeDict for more information)
+
+    Args:
+        fileName (string): full file path to a v4 Pinnacle DAS binary file (.bin extension)
+
+    Returns:
+        dasHeader: file header, typeof DASFileHeader_4
+        dasFrameData: numpy ndarray of DAS frame data. the class and shape of frameData will depend on the frame datatype indicated in the 
+            header (see dataTypeDict for more information)
+        measuredDepth: array of calibrated measured depth values with shape (NumberOfChannels x 1)
+    """
     dasHeader = np.fromfile(fileName, dtype=DASFileHeader_4, count=1)
     numberOfFrames = dasHeader['NumberOfFrames'][0]
     numberOfChannels = dasHeader['NumberOfChannels'][0]
@@ -287,6 +356,13 @@ def readV4DasBinary(fileName):
 
 
 def walkDasDataTree(dataRoot, searchExpression):
+    """
+    Return a list of directories contained in dataRoot and its subdirectories matching searchExpression
+
+    Args:
+        dataRoot (string): full path to root directory for search
+        searchExpression (string): string pattern to match during directory search (e.g. dPhase, Phase Power, etc)
+    """
     if __debug__:
         print("Searching Directory: " + dataRoot)
     childDirectories = filter(lambda z: os.path.isdir(z), glob.glob(dataRoot + "\\*")) 
@@ -305,18 +381,23 @@ def walkDasDataTree(dataRoot, searchExpression):
     return list(filter(None, ans))
 
 def findIQDirectories(dataRoot):
+    """Return a list of in-phase/quadrature (IQ) data directories contained in dataRoot and its subdirectories"""
     return walkDasDataTree(dataRoot, "IQ Data")
 
 def findDPhaseDirectories(dataRoot):
+    """Return a list of differential phase (dPhase) data directories contained in dataRoot and its subdirectories"""
     return walkDasDataTree(dataRoot, "dPhase") + walkDasDataTree(dataRoot, "RawData")
 
 def findStaticPhaseDirectories(dataRoot):
+    """Return a list of static phase data directories contained in dataRoot and its subdirectories"""
     return walkDasDataTree(dataRoot, "Phase BS")
 
 def findPhasePowerDirectories(dataRoot):
+    """Return a list of phase power data directories contained in dataRoot and its subdirectories"""
     return walkDasDataTree(dataRoot, "Phase Power BS")
 
 def findPhaseVarianceDirectories(dataRoot):
+    """Return a list of phase variance data directories contained in dataRoot and its subdirectories"""
     return walkDasDataTree(dataRoot, "Phase Variance BS") + walkDasDataTree(dataRoot, "WaterfallData_PV_") + walkDasDataTree(dataRoot, "WaterfallIntensityData")
 
 #def findSomeDasJobs(dataRoot):
@@ -324,9 +405,10 @@ def findPhaseVarianceDirectories(dataRoot):
 #    RawDataList = glob.glob(dirName+"\\*RawData*", recursive=True)
 #    IQDataList = glob.glob(dirName+"\\*IQ Data*")
 
-def dirRecursive(dirName):
+def dirRecursive(rootDir):
+    """Return a list of DAS binary files (.bin extension) contained in rootDir and its subdirectories"""
     fileList = list()
-    for (dir, _, files) in os.walk(dirName):
+    for (dir, _, files) in os.walk(rootDir):
          for f in files:
              path = os.path.join(dir, f)
              if os.path.exists(path):
@@ -342,10 +424,29 @@ def dirRecursive(dirName):
     return fList
 
 def getFileTimeStamps(fileList):
+    """
+    Get timestamps for each DAS binary file in fileList
+
+    Args:
+        fileList (:obj:`list` of :obj:`str`): list of strings containing either DAS binary file names or full file paths
+
+    Returns:
+        fileTimeStamps (:obj:`list` of :obj:`float`): list of file time stamps in matplotlib epoch time (since 1970-01-01 UTC)
+
+    """
     prog = re.compile('(\d{8}T\d{6})_(\d{6})Z\.bin$')
     return [mdates.datestr2num(ts.group(1)) + (float(ts.group(2)) / 86400000000.0) for ts in [prog.search(f) for f in fileList]]
 
 def checkHeaderVersion(fileName):
+    """
+    Get header version from a Pinnacle DAS binary file (.bin extension)
+
+    Args:
+        fileName (string): full file path to DAS binary file
+
+    Returns:
+        headerVersion (int): Pinnacle DAS binary version (currently only v3 and v4 are supported in pyReadPinnacleDasBinary)
+    """
     with open(fileName, 'rb') as fptr:
         fptr.seek(8, os.SEEK_SET)
         headerVersion = int.from_bytes(fptr.read(2), byteorder='little')
@@ -353,5 +454,57 @@ def checkHeaderVersion(fileName):
             print(fileName + ": Header Version " + str(headerVersion))
         return headerVersion
 
+def displayHelpDocumentation():
+    print("Hint: Shift + Alt + F5 Executes .py File in Visual Studio Interactive Python\n")
+    ## custom data types
+    print("Documentation for pyReadPinnacleDasBinary data types")
+    print("######################################## Frame DataTypes Explained ###########################################")
+    for k in frameDataTypeEnum.keys():
+        print("Frame DataType " + str(k) + ": " + frameDataTypeEnum[k][0])
+        desc = frameDataTypeEnum[k][1]
+        if desc is not "":
+            print("\t" + frameDataTypeEnum[k][1] + "\n")
+        else:
+            print("\n")
+    print("In practice, it will be highly uncommon to see FrameDataType other than 2, 3, 7 or 30.\n")
+    print("######################################## DASFileHeader_3 dtype ###############################################")
+    print("numpy dtype containing v3 Pinnacle DAS binary file header information with the following fields:")
+    for fn in DASFileHeader_3.names:
+        print("\t" + fn)
+    print("\n")
+    print("######################################## DASFileHeader_4 dtype ###############################################")
+    print("numpy dtype containing v4 Pinnacle DAS binary file header information")
+    print("Contains all the fields from a v3 header, but with different byte allignment and additional header fields:")
+    for fn in (set(DASFileHeader_3.names) ^ set(DASFileHeader_4.names)):
+        print("\t" + fn)
+    print("\n")
+    print("DASFileHeader information is accessed by name. e.g. `samplingRate = dasHeader['SamplingRate'][0]`\n\n")
+    ## methods
+    print("Documentation for pyReadPinnacleDasBinary functions")
+    print("######################################## checkHeaderVersion ##################################################")
+    print(checkHeaderVersion.__doc__ + "\n")
+    print("######################################## dirRecursive ########################################################")
+    print(dirRecursive.__doc__ + "\n")
+    print("######################################## findDPhaseDirectories ###############################################")
+    print(findDPhaseDirectories.__doc__ + "\n")
+    print("######################################## findIQDirectories ###################################################")
+    print(findIQDirectories.__doc__ + "\n")
+    print("######################################## findPhasePowerDirectories ###########################################")
+    print(findPhasePowerDirectories.__doc__ + "\n")
+    print("######################################## findPhaseVarianceDirectories ########################################")
+    print(findPhaseVarianceDirectories.__doc__ + "\n")
+    print("######################################## findStaticPhaseDirectories ##########################################")
+    print(findStaticPhaseDirectories.__doc__ + "\n")
+    print("######################################## readV3DasBinary #####################################################")
+    print(readV3DasBinary.__doc__ + "\n")
+    print("######################################## readV4DasBinary #####################################################")
+    print(readV4DasBinary.__doc__ + "\n")
+    print("######################################## walkDasDataTree #####################################################")
+    print(walkDasDataTree.__doc__ + "\n")
+    print("######################################## readDasBinary #######################################################")
+    print(readDasBinary.__doc__ + "\n")
+    print("######################################## getFileTimeStamps ###################################################")
+    print(getFileTimeStamps.__doc__ + "\n")
+
 if __name__ == "__main__":
-    print("Hint: Shift + Alt + F5 Executes .py File in Visual Studio")
+    displayHelpDocumentation()
