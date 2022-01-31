@@ -289,9 +289,11 @@ def readV3DasBinary(fileName):
     frameDataArrayLeadingDim = frameDataInfo[1]
     frameDataNumpyDataType = frameDataInfo[2]
     if frameDataArrayLeadingDim == 1:
-        frameDataShape = (numberOfFrames, numberOfChannels)
+        #frameDataShape = (numberOfFrames, numberOfChannels)
+        frameDataShape = (numberOfChannels, numberOfFrames)
     else:
-        frameDataShape = (frameDataArrayLeadingDim, numberOfFrames, numberOfChannels)
+        #frameDataShape = (frameDataArrayLeadingDim, numberOfFrames, numberOfChannels)
+        frameDataShape = (numberOfChannels, numberOfFrames, frameDataArrayLeadingDim)
 
     nByte = numberOfFrames * numberOfChannels * frameDataSize
 
@@ -326,16 +328,29 @@ def readV4DasBinary(fileName):
     frameOffset = dasHeader['FrameOffset'][0]
     frameDataType = dasHeader['FrameDataType'][0]
     measuredDepthOffset = dasHeader['MeasuredDepthOffset'][0]
-
+    
+    qualityOffset = dasHeader['QualityOffset'][0]
+    qualityBlockSize = dasHeader['QualityBlockSize'][0]
+    qualityDataType = dasHeader['QualityDataType'][0]
+    qualityDataInfo = dataTypeDict[qualityDataType]
+    qualityDataSize = qualityDataInfo[0]
+    qualityDataNumpyDataType = qualityDataInfo[2]
+    nQualityByte = numberOfFrames * numberOfChannels * qualityDataSize // qualityBlockSize
+    # TODO: quality orientation
+    #qualityDataShape = (4, numberOfFrames // qualityBlockSize, numberOfChannels)
+    qualityDataShape = (numberOfChannels, numberOfFrames // qualityBlockSize, 4)
+        
     # get number of bytes to read from array size and data type
     frameDataInfo = dataTypeDict[frameDataType]
     frameDataSize = frameDataInfo[0]
     frameDataArrayLeadingDim = frameDataInfo[1]
     frameDataNumpyDataType = frameDataInfo[2]
     if frameDataArrayLeadingDim == 1:
-        frameDataShape = (numberOfFrames, numberOfChannels)
+        #frameDataShape = (numberOfFrames, numberOfChannels)
+        frameDataShape = (numberOfChannels, numberOfFrames)
     else:
-        frameDataShape = (frameDataArrayLeadingDim, numberOfFrames, numberOfChannels)
+        #frameDataShape = (frameDataArrayLeadingDim, numberOfFrames, numberOfChannels)
+        frameDataShape = (numberOfChannels, numberOfFrames, frameDataArrayLeadingDim)
 
     nByte = numberOfFrames * numberOfChannels * frameDataSize
     nMeasuredDepthByte = numberOfChannels * 4
@@ -352,7 +367,13 @@ def readV4DasBinary(fileName):
         frameDataFlat = np.frombuffer(frameDataBytes, dtype=frameDataNumpyDataType)
         dasFrameData = np.reshape(frameDataFlat, newshape=frameDataShape)
 
-    return dasHeader, dasFrameData, measuredDepthData
+        # read quality data from DAS binary
+        fptr.seek(qualityOffset, os.SEEK_SET)
+        qualityDataBytes = fptr.read(nQualityByte)
+        qualityDataFlat = np.frombuffer(qualityDataBytes, dtype=qualityDataNumpyDataType)
+        dasQualityData = np.reshape(qualityDataFlat, qualityDataShape)
+        
+    return dasHeader, dasFrameData, measuredDepthData, dasQualityData
 
 
 def walkDasDataTree(dataRoot, searchExpression):
